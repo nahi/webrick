@@ -272,7 +272,7 @@ module WEBrick
       end
 
       def split_param_value(string)
-        ret = {}
+        ret = HTTPUtils::LimitedHash.new(1024)
         while string.bytesize != 0
           case string
           when /^\s*([\w\-\.\*\%\!]+)=\s*\"((\\.|[^\"])*)\"\s*,?/
@@ -291,7 +291,7 @@ module WEBrick
             break
           end
         end
-        ret
+        ret.hash
       end
 
       def generate_next_nonce(req)

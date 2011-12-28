@@ -18,6 +18,46 @@ module WEBrick
 
   module HTTPUtils
 
+    class LimitedHash
+      class HashKeySizeError < StandardError; end
+
+      attr_accessor :hash
+
+      def initialize(limit = nil)
+        @limit = limit
+        @key_size = 0
+        @hash = Hash.new
+      end
+
+      def has_key?(key)
+        @hash.has_key?(key)
+      end
+
+      def [](key)
+        @hash[key]
+      end
+
+      def []=(key, value)
+        @hash[key] = value
+        count
+      end
+
+      def each
+        @hash.each do |x|
+          yield x
+        end
+      end
+
+      private
+
+      def count
+        @key_size += 1
+        if @limit and @key_size > @limit
+          raise HashKeySizeError, "Hash key size limit exceeded: #{@limit}"
+        end
+      end
+    end
+
     def normalize_path(path)
       raise "abnormal path `#{path}'" if path[0] != ?/
       ret = path.dup
@@ -118,8 +158,9 @@ module WEBrick
 
     #####
 
-    def parse_header(raw)
-      header = Hash.new([].freeze)
+    def parse_header(raw, limit = nil)
+      header = LimitedHash.new(limit)
+      header.hash = Hash.new([].freeze)
       field = nil
       raw.each_line{|line|
         case line
@@ -144,7 +185,7 @@ module WEBrick
           value.gsub!(/\s+/, " ")
         }
       }
-      header
+      header.hash
     end
     module_function :parse_header
 
@@ -285,8 +326,8 @@ module WEBrick
       end
     end
 
-    def parse_query(str)
-      query = Hash.new
+    def parse_query(str, limit = nil)
+      query = LimitedHash.new(limit)
       if str
         str.split(/[&;]/).each{|x|
           next if x.empty?
@@ -302,14 +343,14 @@ module WEBrick
           query[key] = val
         }
       end
-      query
+      query.hash
     end
     module_function :parse_query
 
-    def parse_form_data(io, boundary)
+    def parse_form_data(io, boundary, limit = nil)
       boundary_regexp = /\A--#{Regexp.quote(boundary)}(--)?#{CRLF}\z/
-      form_data = Hash.new
-      return form_data unless io
+      form_data = LimitedHash.new(limit)
+      return form_data.hash unless io
       data = nil
       io.each_line{|line|
         if boundary_regexp =~ line
@@ -330,7 +371,7 @@ module WEBrick
           end
         end
       }
-      return form_data
+      form_data.hash
     end
     module_function :parse_form_data
 
