@@ -44,7 +44,7 @@ module WEBrick
 
     def initialize(config)
       @config = config
-      @logger = config[:Logger]
+      @logger = @config[:Logger]
 
       @request_line = @request_method =
         @unparsed_uri = @http_version = nil
@@ -242,7 +242,7 @@ module WEBrick
           @raw_header << line
         end
       end
-      @header = HTTPUtils::parse_header(@raw_header.join)
+      @header = HTTPUtils::parse_header(@raw_header.join, @config[:ParamKeySizeLimit])
     end
 
     def parse_uri(str, scheme="http")
@@ -344,13 +344,14 @@ module WEBrick
 
     def parse_query()
       begin
+        limit = @config[:ParamKeySizeLimit]
         if @request_method == "GET" || @request_method == "HEAD"
-          @query = HTTPUtils::parse_query(@query_string)
+          @query = HTTPUtils::parse_query(@query_string, limit)
         elsif self['content-type'] =~ /^application\/x-www-form-urlencoded/
-          @query = HTTPUtils::parse_query(body)
+          @query = HTTPUtils::parse_query(body, limit)
         elsif self['content-type'] =~ /^multipart\/form-data; boundary=(.+)/
           boundary = HTTPUtils::dequote($1)
-          @query = HTTPUtils::parse_form_data(body, boundary)
+          @query = HTTPUtils::parse_form_data(body, boundary, limit)
         else
           @query = Hash.new
         end
