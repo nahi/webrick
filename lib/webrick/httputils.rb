@@ -10,7 +10,6 @@
 
 require 'socket'
 require 'tempfile'
-require 'webrick/httpstatus'
 
 module WEBrick
   CR   = "\x0d"
@@ -18,46 +17,6 @@ module WEBrick
   CRLF = "\x0d\x0a"
 
   module HTTPUtils
-
-    class LimitedHash
-      class HashKeySizeError < StandardError; end
-
-      attr_accessor :hash
-
-      def initialize(limit = nil)
-        @limit = limit
-        @key_size = 0
-        @hash = Hash.new
-      end
-
-      def has_key?(key)
-        @hash.has_key?(key)
-      end
-
-      def [](key)
-        @hash[key]
-      end
-
-      def []=(key, value)
-        @hash[key] = value
-        count
-      end
-
-      def each
-        @hash.each do |x|
-          yield x
-        end
-      end
-
-      private
-
-      def count
-        @key_size += 1
-        if @limit and @key_size > @limit
-          raise HashKeySizeError, "Hash key size limit exceeded: #{@limit}"
-        end
-      end
-    end
 
     def normalize_path(path)
       raise "abnormal path `#{path}'" if path[0] != ?/
@@ -98,7 +57,6 @@ module WEBrick
       "jpe"   => "image/jpeg",
       "jpeg"  => "image/jpeg",
       "jpg"   => "image/jpeg",
-      "js"    => "application/javascript",
       "lha"   => "application/octet-stream",
       "lzh"   => "application/octet-stream",
       "mov"   => "video/quicktime",
@@ -120,12 +78,10 @@ module WEBrick
       "rtf"   => "application/rtf",
       "sgm"   => "text/sgml",
       "sgml"  => "text/sgml",
-      "svg"   => "image/svg+xml",
       "tif"   => "image/tiff",
       "tiff"  => "image/tiff",
       "txt"   => "text/plain",
       "xbm"   => "image/x-xbitmap",
-      "xhtml" => "text/html",
       "xls"   => "application/vnd.ms-excel",
       "xml"   => "text/xml",
       "xpm"   => "image/x-xpixmap",
@@ -141,7 +97,7 @@ module WEBrick
           next if /^#/ =~ line
           line.chomp!
           mimetype, ext0 = line.split(/\s+/, 2)
-          next unless ext0
+          next unless ext0   
           next if ext0.empty?
           ext0.split(/\s+/).each{ |ext| hash[ext] = mimetype }
         }
@@ -159,11 +115,10 @@ module WEBrick
 
     #####
 
-    def parse_header(raw, limit = nil)
-      header = LimitedHash.new(limit)
-      header.hash = Hash.new([].freeze)
+    def parse_header(raw)
+      header = Hash.new([].freeze)
       field = nil
-      raw.each_line{|line|
+      raw.each{|line|
         case line
         when /^([A-Za-z0-9!\#$%&'*+\-.^_`|~]+):\s*(.*?)\s*\z/om
           field, value = $1, $2
@@ -186,7 +141,7 @@ module WEBrick
           value.gsub!(/\s+/, " ")
         }
       }
-      header.hash
+      header
     end
     module_function :parse_header
 
@@ -260,7 +215,7 @@ module WEBrick
           super("")
         else
           @raw_header = EmptyRawHeader
-          @header = EmptyHeader
+          @header = EmptyHeader 
           super(args.shift)
           unless args.empty?
             @next_data = self.class.new(*args)
@@ -280,7 +235,7 @@ module WEBrick
         if @header
           super
         elsif str == CRLF
-          @header = HTTPUtils::parse_header(@raw_header.join)
+          @header = HTTPUtils::parse_header(@raw_header)
           if cd = self['content-disposition']
             if /\s+name="(.*?)"/ =~ cd then @name = $1 end
             if /\s+filename="(.*?)"/ =~ cd then @filename = $1 end
@@ -294,7 +249,7 @@ module WEBrick
       def append_data(data)
         tmp = self
         while tmp
-          unless tmp.next_data
+          unless tmp.next_data 
             tmp.next_data = data
             break
           end
@@ -327,11 +282,11 @@ module WEBrick
       end
     end
 
-    def parse_query(str, limit = nil)
-      query = LimitedHash.new(limit)
+    def parse_query(str)
+      query = Hash.new
       if str
         str.split(/[&;]/).each{|x|
-          next if x.empty?
+          next if x.empty? 
           key, val = x.split(/=/,2)
           key = unescape_form(key)
           val = unescape_form(val.to_s)
@@ -344,16 +299,16 @@ module WEBrick
           query[key] = val
         }
       end
-      query.hash
+      query
     end
     module_function :parse_query
 
-    def parse_form_data(io, boundary, limit = nil)
-      boundary_regexp = /\A--#{Regexp.quote(boundary)}(--)?#{CRLF}\z/
-      form_data = LimitedHash.new(limit)
-      return form_data.hash unless io
+    def parse_form_data(io, boundary)
+      boundary_regexp = /\A--#{boundary}(--)?#{CRLF}\z/
+      form_data = Hash.new
+      return form_data unless io
       data = nil
-      io.each_line{|line|
+      io.each{|line|
         if boundary_regexp =~ line
           if data
             data.chop!
@@ -361,7 +316,7 @@ module WEBrick
             if form_data.has_key?(key)
               form_data[key].append_data(data)
             else
-              form_data[key] = data
+              form_data[key] = data 
             end
           end
           data = FormData.new
@@ -372,7 +327,7 @@ module WEBrick
           end
         end
       }
-      form_data.hash
+      return form_data
     end
     module_function :parse_form_data
 
@@ -394,7 +349,7 @@ module WEBrick
 
     def _make_regex(str) /([#{Regexp.escape(str)}])/n end
     def _make_regex!(str) /([^#{Regexp.escape(str)}])/n end
-    def _escape(str, regex) str.gsub(regex){ "%%%02X" % $1.ord } end
+    def _escape(str, regex) str.gsub(regex){ "%%%02X" % $1[0] } end
     def _unescape(str, regex) str.gsub(regex){ $1.hex.chr } end
 
     UNESCAPED = _make_regex(control+space+delims+unwise+nonascii)

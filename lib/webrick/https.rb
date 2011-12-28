@@ -21,6 +21,7 @@ module WEBrick
     alias orig_parse parse
 
     def parse(socket=nil)
+      @cipher = @server_cert = @client_cert = nil
       if socket.respond_to?(:cert)
         @server_cert = socket.cert || @config[:SSLCertificate]
         @client_cert = socket.peer_cert
@@ -33,18 +34,17 @@ module WEBrick
     alias orig_parse_uri parse_uri
 
     def parse_uri(str, scheme="https")
-      if server_cert
+      if @server_cert
         return orig_parse_uri(str, scheme)
       end
       return orig_parse_uri(str)
     end
-    private :parse_uri
 
     alias orig_meta_vars meta_vars
 
     def meta_vars
       meta = orig_meta_vars
-      if server_cert
+      if @server_cert
         meta["HTTPS"] = "on"
         meta["SSL_SERVER_CERT"] = @server_cert.to_pem
         meta["SSL_CLIENT_CERT"] = @client_cert ? @client_cert.to_pem : ""

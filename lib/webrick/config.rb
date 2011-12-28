@@ -22,7 +22,7 @@ module WEBrick
     General = {
       :ServerName     => Utils::getservername,
       :BindAddress    => nil,   # "0.0.0.0" or "::" or nil
-      :Port           => nil,   # users MUST specify this!!
+      :Port           => nil,   # users MUST specifiy this!!
       :MaxClients     => 100,   # maximum number of the concurrent connections
       :ServerType     => nil,   # default: WEBrick::SimpleServer
       :Logger         => nil,   # default: WEBrick::Log.new
@@ -33,8 +33,6 @@ module WEBrick
       :StartCallback  => nil,
       :StopCallback   => nil,
       :AcceptCallback => nil,
-      :DoNotReverseLookup => nil,
-      :ShutdownSocketWithoutClose => false,
     }
 
     # for HTTPServer, HTTPRequest, HTTPResponse ...
@@ -47,10 +45,9 @@ module WEBrick
       :DirectoryIndex => ["index.html","index.htm","index.cgi","index.rhtml"],
       :DocumentRoot   => nil,
       :DocumentRootOptions => { :FancyIndexing => true },
-      :RequestCallback => nil,
+      :RequestHandler => nil,
+      :RequestCallback => nil,  # alias of :RequestHandler
       :ServerAlias    => nil,
-      :InputBufferSize  => 65536, # input buffer size in reading request body
-      :OutputBufferSize => 65536, # output buffer size in sending File or IO
 
       # for HTTPProxyServer
       :ProxyAuthProc  => nil,
@@ -82,29 +79,8 @@ module WEBrick
       :AutoReloadUserDB     => true,
     }
 
-    ##
-    # Default configuration for WEBrick::HTTPAuth::DigestAuth.
-    #
-    # :Algorithm:: MD5, MD5-sess (default), SHA1, SHA1-sess
-    # :Domain:: An Array of URIs that define the protected space
-    # :Qop:: 'auth' for authentication, 'auth-int' for integrity protection or
-    #        both
-    # :UseOpaque:: Should the server send opaque values to the client?  This
-    #              helps prevent replay attacks.
-    # :CheckNc:: Should the server check the nonce count?  This helps the
-    #            server detect replay attacks.
-    # :UseAuthenticationInfoHeader:: Should the server send an
-    #                                AuthenticationInfo header?
-    # :AutoReloadUserDB:: Reload the user database provided by :UserDB
-    #                     automatically?
-    # :NonceExpirePeriod:: How long should we store used nonces?  Default is
-    #                      30 minutes.
-    # :NonceExpireDelta:: How long is a nonce valid?  Default is 1 minute
-    # :InternetExplorerHack:: Hack which allows Internet Explorer to work.
-    # :OperaHack:: Hack which allows Opera to work.
-
     DigestAuth = {
-      :Algorithm            => 'MD5-sess', # or 'MD5'
+      :Algorithm            => 'MD5-sess', # or 'MD5' 
       :Domain               => nil,        # an array includes domain names.
       :Qop                  => [ 'auth' ], # 'auth' or 'auth-int' or both.
       :UseOpaque            => true,

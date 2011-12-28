@@ -20,7 +20,7 @@ module WEBrick
 
     class DefaultFileHandler < AbstractServlet
       def initialize(server, local_path)
-        super(server, local_path)
+        super
         @local_path = local_path
       end
 
@@ -32,7 +32,7 @@ module WEBrick
         if not_modified?(req, res, mtime, res['etag'])
           res.body = ''
           raise HTTPStatus::NotModified
-        elsif req['range']
+        elsif req['range'] 
           make_partial_content(req, res, @local_path, st.size)
           raise HTTPStatus::PartialContent
         else
@@ -125,47 +125,16 @@ module WEBrick
       end
     end
 
-    ##
-    # Serves files from a directory
-
     class FileHandler < AbstractServlet
       HandlerTable = Hash.new
-
-      ##
-      # Allow custom handling of requests for files with +suffix+ by class
-      # +handler+
 
       def self.add_handler(suffix, handler)
         HandlerTable[suffix] = handler
       end
 
-      ##
-      # Remove custom handling of requests for files with +suffix+
-
       def self.remove_handler(suffix)
         HandlerTable.delete(suffix)
       end
-
-      ##
-      # Creates a FileHandler servlet on +server+ that serves files starting
-      # at directory +root+
-      #
-      # If +options+ is a Hash the following keys are allowed:
-      #
-      # :AcceptableLanguages:: Array of languages allowed for accept-language
-      # :DirectoryCallback:: Allows preprocessing of directory requests
-      # :FancyIndexing:: If true, show an index for directories
-      # :FileCallback:: Allows preprocessing of file requests
-      # :HandlerCallback:: Allows preprocessing of requests
-      # :HandlerTable:: Maps file suffixes to file handlers.
-      #                 DefaultFileHandler is used by default but any servlet
-      #                 can be used.
-      # :NondisclosureName:: Do not show files matching this array of globs
-      # :UserDir:: Directory inside ~user to serve content from for /~user
-      #            requests.  Only works if mounted on /
-      #
-      # If +options+ is true or false then +:FancyIndexing+ is enabled or
-      # disabled respectively.
 
       def initialize(server, root, options={}, default=Config::FileHandler)
         @config = server.config
@@ -245,20 +214,16 @@ module WEBrick
         # character in URI notation. So the value of path_info should be
         # normalize before accessing to the filesystem.
 
-        # dirty hack for filesystem encoding; in nature, File.expand_path
-        # should not be used for path normalization.  [Bug #3345]
-        path = req.path_info.dup.force_encoding(Encoding.find("filesystem"))
         if trailing_pathsep?(req.path_info)
           # File.expand_path removes the trailing path separator.
           # Adding a character is a workaround to save it.
           #  File.expand_path("/aaa/")        #=> "/aaa"
           #  File.expand_path("/aaa/" + "x")  #=> "/aaa/x"
-          expanded = File.expand_path(path + "x")
+          expanded = File.expand_path(req.path_info + "x")
           expanded.chop!  # remove trailing "x"
         else
-          expanded = File.expand_path(path)
+          expanded = File.expand_path(req.path_info)
         end
-        expanded.force_encoding(req.path_info.encoding)
         req.path_info = expanded
       end
 
@@ -437,25 +402,25 @@ module WEBrick
         res.body << "<A HREF=\"?M=#{d1}\">Last modified</A>         "
         res.body << "<A HREF=\"?S=#{d1}\">Size</A>\n"
         res.body << "<HR>\n"
-
+       
         list.unshift [ "..", File::mtime(local_path+"/.."), -1 ]
         list.each{ |name, time, size|
           if name == ".."
             dname = "Parent Directory"
-          elsif name.bytesize > 25
-            dname = name.sub(/^(.{23})(?:.*)/, '\1..')
+          elsif name.size > 25
+            dname = name.sub(/^(.{23})(.*)/){ $1 + ".." }
           else
             dname = name
           end
-          s =  " <A HREF=\"#{HTTPUtils::escape(name)}\">#{HTMLUtils::escape(dname)}</A>"
-          s << " " * (30 - dname.bytesize)
+          s =  " <A HREF=\"#{HTTPUtils::escape(name)}\">#{dname}</A>"
+          s << " " * (30 - dname.size)
           s << (time ? time.strftime("%Y/%m/%d %H:%M      ") : " " * 22)
           s << (size >= 0 ? size.to_s : "-") << "\n"
           res.body << s
         }
         res.body << "</PRE><HR>"
 
-        res.body << <<-_end_of_html_
+        res.body << <<-_end_of_html_    
     <ADDRESS>
      #{HTMLUtils::escape(@config[:ServerSoftware])}<BR>
      at #{req.host}:#{req.port}

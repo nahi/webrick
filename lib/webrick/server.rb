@@ -10,6 +10,7 @@
 
 require 'thread'
 require 'socket'
+require 'timeout'
 require 'webrick/config'
 require 'webrick/log'
 
@@ -23,15 +24,7 @@ module WEBrick
     end
   end
 
-  ##
-  # A generic module for daemonizing a process
-
   class Daemon
-
-    ##
-    # Performs the standard operations for daemonizing a process.  Runs a
-    # block, if given.
-
     def Daemon.start
       exit!(0) if fork
       Process::setsid
@@ -99,7 +92,6 @@ module WEBrick
               svrs[0].each{|svr|
                 @tokens.pop          # blocks while no token is there.
                 if sock = accept_client(svr)
-                  sock.do_not_reverse_lookup = config[:DoNotReverseLookup]
                   th = start_thread(sock, &block)
                   th[:WEBrickThread] = true
                   thgroup.add(th)
@@ -138,18 +130,7 @@ module WEBrick
           addr = s.addr
           @logger.debug("close TCPSocket(#{addr[2]}, #{addr[1]})")
         end
-        begin
-          s.shutdown
-        rescue Errno::ENOTCONN
-          # when `Errno::ENOTCONN: Socket is not connected' on some platforms,
-          # call #close instead of #shutdown.
-          # (ignore @config[:ShutdownSocketWithoutClose])
-          s.close
-        else
-          unless @config[:ShutdownSocketWithoutClose]
-            s.close
-          end
-        end
+        s.close
       }
       @listeners.clear
     end
@@ -167,8 +148,9 @@ module WEBrick
         sock.sync = true
         Utils::set_non_blocking(sock)
         Utils::set_close_on_exec(sock)
-      rescue Errno::ECONNRESET, Errno::ECONNABORTED,
-             Errno::EPROTO, Errno::EINVAL => ex
+      rescue Errno::ECONNRESET, Errno::ECONNABORTED, Errno::EPROTO => ex
+        # TCP connection was established but RST segment was sent
+        # from peer before calling TCPServer#accept.
       rescue Exception => ex
         msg = "#{ex.class}: #{ex.message}\n\t#{ex.backtrace[0]}"
         @logger.error msg

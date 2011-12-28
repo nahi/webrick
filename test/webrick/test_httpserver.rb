@@ -1,7 +1,7 @@
 require "test/unit"
 require "net/http"
 require "webrick"
-require_relative "utils"
+require File.join(File.dirname(__FILE__), "utils.rb")
 
 class TestWEBrickHTTPServer < Test::Unit::TestCase
   def test_mount
@@ -223,7 +223,7 @@ class TestWEBrickHTTPServer < Test::Unit::TestCase
       :StopCallback => Proc.new{ stopped += 1 },
       :RequestCallback => Proc.new{|req, res| requested0 += 1 },
     }
-    TestWEBrick.start_httpserver(config){|server, addr, port, log|
+    TestWEBrick.start_httpserver(config){|server, addr, port|
       vhost_config = {
         :ServerName => "myhostname",
         :BindAddress => addr,
@@ -236,70 +236,25 @@ class TestWEBrickHTTPServer < Test::Unit::TestCase
       server.virtual_host(WEBrick::HTTPServer.new(vhost_config))
 
       true while server.status != :Running
-      assert_equal(started, 1, log.call)
-      assert_equal(stopped, 0, log.call)
-      assert_equal(accepted, 0, log.call)
+      assert_equal(started, 1)
+      assert_equal(stopped, 0)
+      assert_equal(accepted, 0)
 
       http = Net::HTTP.new(addr, port)
       req = Net::HTTP::Get.new("/")
       req["Host"] = "myhostname:#{port}"
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
+      http.request(req){|res| assert_equal("404", res.code)}
+      http.request(req){|res| assert_equal("404", res.code)}
+      http.request(req){|res| assert_equal("404", res.code)}
       req["Host"] = "localhost:#{port}"
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      assert_equal(6, accepted, log.call)
-      assert_equal(3, requested0, log.call)
-      assert_equal(3, requested1, log.call)
+      http.request(req){|res| assert_equal("404", res.code)}
+      http.request(req){|res| assert_equal("404", res.code)}
+      http.request(req){|res| assert_equal("404", res.code)}
+      assert_equal(6, accepted)
+      assert_equal(3, requested0)
+      assert_equal(3, requested1)
     }
     assert_equal(started, 1)
     assert_equal(stopped, 1)
-  end
-
-  def test_response_io_without_chunked_set
-    config = {
-      :ServerName => "localhost"
-    }
-    TestWEBrick.start_httpserver(config){|server, addr, port, log|
-      server.mount_proc("/", lambda { |req, res|
-        r,w = IO.pipe
-        # Test for not setting chunked...
-        # res.chunked = true
-        res.body = r
-        w << "foo"
-        w.close
-      })
-      Thread.pass while server.status != :Running
-      http = Net::HTTP.new(addr, port)
-      req = Net::HTTP::Get.new("/")
-      req['Connection'] = 'Keep-Alive'
-      begin
-        timeout(2) do
-          http.request(req){|res| assert_equal("foo", res.body) }
-        end
-      rescue Timeout::Error
-        flunk('corrupted reponse')
-      end
-    }
-  end
-
-  def test_request_handler_callback_is_deprecated
-    requested = 0
-    config = {
-      :ServerName => "localhost",
-      :RequestHandler => Proc.new{|req, res| requested += 1 },
-    }
-    TestWEBrick.start_httpserver(config){|server, addr, port, log|
-      true while server.status != :Running
-
-      http = Net::HTTP.new(addr, port)
-      req = Net::HTTP::Get.new("/")
-      req["Host"] = "localhost:#{port}"
-      http.request(req){|res| assert_equal("404", res.code, log.call)}
-      assert_match(%r{:RequestHandler is deprecated, please use :RequestCallback$}, log.call, log.call)
-    }
-    assert_equal(requested, 1)
   end
 end

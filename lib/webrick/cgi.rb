@@ -77,7 +77,7 @@ module WEBrick
         res.set_error(ex)
       rescue HTTPStatus::Status => ex
         res.status = ex.code
-      rescue Exception => ex
+      rescue Exception => ex 
         @logger.error(ex)
         res.set_error(ex, true)
       ensure
@@ -122,7 +122,7 @@ module WEBrick
       include Enumerable
 
       private
-
+  
       def initialize(config, env, stdin, stdout)
         @config = config
         @env = env
@@ -130,7 +130,7 @@ module WEBrick
         @body_part = stdin
         @out_port = stdout
         @out_port.binmode
-
+  
         @server_addr = @env["SERVER_ADDR"] || "0.0.0.0"
         @server_name = @env["SERVER_NAME"]
         @server_port = @env["SERVER_PORT"]
@@ -143,7 +143,7 @@ module WEBrick
           setup_header
           @header_part << CRLF
           @header_part.rewind
-        rescue Exception
+        rescue Exception => ex
           raise CGIError, "invalid CGI environment"
         end
       end
@@ -164,42 +164,43 @@ module WEBrick
         httpv = @config[:HTTPVersion]
         return "#{meth} #{url} HTTP/#{httpv}"
       end
-
+  
       def setup_header
-        @env.each{|key, value|
-          case key
-          when "CONTENT_TYPE", "CONTENT_LENGTH"
-            add_header(key.gsub(/_/, "-"), value)
-          when /^HTTP_(.*)/
-            add_header($1.gsub(/_/, "-"), value)
+        add_header("CONTENT_TYPE", "Content-Type")
+        add_header("CONTENT_LENGTH", "Content-length")
+        @env.each_key{|name|
+          if /^HTTP_(.*)/ =~ name
+            add_header(name, $1.gsub(/_/, "-"))
           end
         }
       end
-
-      def add_header(hdrname, value)
-        unless value.empty?
-          @header_part << hdrname << ": " << value << CRLF
+  
+      def add_header(envname, hdrname)
+        if value = @env[envname]
+          unless value.empty?
+            @header_part << hdrname << ": " << value << CRLF
+          end
         end
       end
 
       def input
         @header_part.eof? ? @body_part : @header_part
       end
-
+  
       public
-
+  
       def peeraddr
         [nil, @remote_port, @remote_host, @remote_addr]
       end
-
+  
       def addr
         [nil, @server_port, @server_name, @server_addr]
       end
-
-      def gets(eol=LF, size=nil)
-        input.gets(eol, size)
+  
+      def gets(eol=LF)
+        input.gets(eol)
       end
-
+  
       def read(size=nil)
         input.read(size)
       end
@@ -207,11 +208,7 @@ module WEBrick
       def each
         input.each{|line| yield(line) }
       end
-
-      def eof?
-        input.eof?
-      end
-
+  
       def <<(data)
         @out_port << data
       end
@@ -256,5 +253,5 @@ module WEBrick
         end
       end
     end
-  end
-end
+  end 
+end  
