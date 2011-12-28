@@ -10,6 +10,7 @@
 
 require 'socket'
 require 'tempfile'
+require 'webrick/httpstatus'
 
 module WEBrick
   CR   = "\x0d"
