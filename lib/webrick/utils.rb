@@ -121,6 +121,8 @@ module WEBrick
     ##
     # Class used to manage timeout handlers across multiple threads.
     #
+    # NOT USED in 1.9 or later.
+    #
     # Timeout handlers should be managed by using the class methods which are
     # synchronized.
     #
