@@ -1,7 +1,7 @@
 require 'rubygems'
 Gem::Specification.new { |s|
   s.name = "webrick"
-  s.version = "1.3.1"
+  s.version = "1.3.2.dev"
   s.date = "2011-12-28"
   s.author = "IPR -- Internet Programming with Ruby -- writers"
   s.email = "nahi@ruby-lang.org"
