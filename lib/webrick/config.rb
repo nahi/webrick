@@ -48,6 +48,7 @@ module WEBrick
       :RequestHandler => nil,
       :RequestCallback => nil,  # alias of :RequestHandler
       :ServerAlias    => nil,
+      :ParamKeySizeLimit => 1024,
 
       # for HTTPProxyServer
       :ProxyAuthProc  => nil,

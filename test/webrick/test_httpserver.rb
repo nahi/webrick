@@ -257,4 +257,24 @@ class TestWEBrickHTTPServer < Test::Unit::TestCase
     assert_equal(started, 1)
     assert_equal(stopped, 1)
   end
+
+  def test_param_key_size_limit
+    TestWEBrick.start_httpserver{|server, addr, port|
+      assert_equal(1024, server.config[:ParamKeySizeLimit])
+    }
+    config = {
+      :ServerName => "localhost",
+      # You cannot set this size too small because it also affects HTTP header size
+      :ParamKeySizeLimit => 5
+    }
+    TestWEBrick.start_httpserver(config){|server, addr, port|
+      # WEBrick does on-demand parsing so the limit fires at 'req.query'
+      server.mount_proc("/") { |req, res| res.body = req.query }
+      Thread.pass while server.status != :Running
+      http = Net::HTTP.new(addr, port)
+      assert_equal("200", http.request(Net::HTTP::Get.new("/")).code)
+      assert_equal("200", http.request(Net::HTTP::Get.new("/?a=1;b=2;c=3;d=4;e=5")).code)
+      assert_equal("400", http.request(Net::HTTP::Get.new("/?a=1;b=2;c=3;d=4;e=5;f=6")).code)
+    }
+  end
 end
